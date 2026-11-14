@@ -10,11 +10,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract FocusLoop source archive
+      - name: Download and extract FocusLoop source
         run: |
-          if [ -f FocusLoop-source.zip ]; then
-            unzip -o FocusLoop-source.zip
-          fi
+          curl -fL --retry 3 "https://d2ol7oe51mr4n9.cloudfront.net/user_3LSC6wfWubV1soZQeKvBRe9bcCy/67d61d06-a6f3-4681-85db-18f5b555981e.zip" -o FocusLoop-source.zip
+          unzip -o FocusLoop-source.zip
           test -f FocusLoop/gradlew
           chmod +x FocusLoop/gradlew
 
