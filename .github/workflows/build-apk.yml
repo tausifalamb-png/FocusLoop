@@ -17,6 +17,28 @@ jobs:
           test -f FocusLoop/gradlew
           chmod +x FocusLoop/gradlew
 
+      - name: Fix Android style resource names
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base = Path("FocusLoop/app/src/main/res")
+          themes = base / "values/themes.xml"
+          s = themes.read_text()
+          s = s.replace('name="FL.Button"', 'name="FLButton"')
+          s = s.replace('name="FL.Button.Primary"', 'name="FLButtonPrimary" parent="FLButton"')
+          s = s.replace('name="FL.Button.Secondary"', 'name="FLButtonSecondary" parent="FLButton"')
+          s = s.replace('name="FL.SectionTitle"', 'name="FLSectionTitle"')
+          s = s.replace('name="FL.Card"', 'name="FLCard"')
+          themes.write_text(s)
+          for layout in base.rglob("*.xml"):
+              t = layout.read_text()
+              t = t.replace("@style/FL.Button.Primary", "@style/FLButtonPrimary")
+              t = t.replace("@style/FL.Button.Secondary", "@style/FLButtonSecondary")
+              t = t.replace("@style/FL.SectionTitle", "@style/FLSectionTitle")
+              t = t.replace("@style/FL.Card", "@style/FLCard")
+              layout.write_text(t)
+          PY
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
