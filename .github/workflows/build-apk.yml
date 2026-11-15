@@ -39,6 +39,9 @@ jobs:
               layout.write_text(t)
           PY
 
+      - name: Apply source audit fixes
+        run: python3 patches/patch_focusloop.py
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
