@@ -176,3 +176,114 @@ test_path.parent.mkdir(parents=True, exist_ok=True)
 test_path.write_text(test_source, encoding="utf-8")
 
 print("P0 timer hardening and unit tests applied")
+
+
+replace_once("app/src/main/java/com/focusloop/app/Store.kt",
+'''    var vibrateOn: Boolean
+        get() = sp.getBoolean(KEY_VIBRATE, true)
+        set(value) {
+            sp.edit().putBoolean(KEY_VIBRATE, value).apply()
+        }
+''',
+'''    var vibrateOn: Boolean
+        get() = sp.getBoolean(KEY_VIBRATE, true)
+        set(value) {
+            sp.edit().putBoolean(KEY_VIBRATE, value).apply()
+        }
+
+    /** Enabled by default to preserve the existing visible-timer behavior. */
+    var keepScreenAwake: Boolean
+        get() = sp.getBoolean(KEY_KEEP_SCREEN_AWAKE, true)
+        set(value) {
+            sp.edit().putBoolean(KEY_KEEP_SCREEN_AWAKE, value).apply()
+        }
+''')
+replace_once("app/src/main/java/com/focusloop/app/Store.kt",
+'''        private const val KEY_VIBRATE = "vibrate_on"
+''',
+'''        private const val KEY_VIBRATE = "vibrate_on"
+        private const val KEY_KEEP_SCREEN_AWAKE = "keep_screen_awake"
+''')
+replace_once("app/src/main/java/com/focusloop/app/MainActivity.kt",
+'''    private lateinit var vibrateSwitch: SwitchCompat
+''',
+'''    private lateinit var vibrateSwitch: SwitchCompat
+    private lateinit var keepScreenAwakeSwitch: SwitchCompat
+''')
+replace_once("app/src/main/java/com/focusloop/app/MainActivity.kt",
+'''        vibrateSwitch = findViewById(R.id.vibrateSwitch)
+''',
+'''        vibrateSwitch = findViewById(R.id.vibrateSwitch)
+        keepScreenAwakeSwitch = findViewById(R.id.keepScreenAwakeSwitch)
+''')
+replace_once("app/src/main/java/com/focusloop/app/MainActivity.kt",
+'''        vibrateSwitch.setOnCheckedChangeListener { _, checked -> store.vibrateOn = checked }
+''',
+'''        vibrateSwitch.setOnCheckedChangeListener { _, checked -> store.vibrateOn = checked }
+        keepScreenAwakeSwitch.setOnCheckedChangeListener { _, checked ->
+            store.keepScreenAwake = checked
+            refreshTimer()
+        }
+''')
+replace_once("app/src/main/java/com/focusloop/app/MainActivity.kt",
+'''        setKeepScreenOn(status == Status.RUNNING)
+''',
+'''        setKeepScreenOn(status == Status.RUNNING && store.keepScreenAwake)
+''')
+replace_once("app/src/main/java/com/focusloop/app/MainActivity.kt",
+'''        vibrateSwitch.isChecked = store.vibrateOn
+        soundSwitch.setOnCheckedChangeListener { _, checked -> store.soundOn = checked }
+        vibrateSwitch.setOnCheckedChangeListener { _, checked -> store.vibrateOn = checked }
+''',
+'''        vibrateSwitch.isChecked = store.vibrateOn
+        keepScreenAwakeSwitch.isChecked = store.keepScreenAwake
+        soundSwitch.setOnCheckedChangeListener { _, checked -> store.soundOn = checked }
+        vibrateSwitch.setOnCheckedChangeListener { _, checked -> store.vibrateOn = checked }
+        keepScreenAwakeSwitch.setOnCheckedChangeListener { _, checked ->
+            store.keepScreenAwake = checked
+            refreshTimer()
+        }
+''')
+replace_once("app/src/main/res/layout/activity_main.xml",
+'''                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/vibrateSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="44dp"
+                        android:text="@string/label_vibrate"
+                        android:textColor="?attr/flText"
+                        android:textSize="16sp" />
+''',
+'''                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/vibrateSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="44dp"
+                        android:text="@string/label_vibrate"
+                        android:textColor="?attr/flText"
+                        android:textSize="16sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/keepScreenAwakeSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="44dp"
+                        android:text="@string/label_keep_screen_awake"
+                        android:textColor="?attr/flText"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/keep_screen_awake_warning"
+                        android:textColor="?attr/flTextDim"
+                        android:textSize="12sp" />
+''')
+replace_once("app/src/main/res/values/strings.xml",
+'''    <string name="label_vibrate">Vibration</string>
+''',
+'''    <string name="label_vibrate">Vibration</string>
+    <string name="label_keep_screen_awake">Keep screen awake while timer is visible</string>
+    <string name="keep_screen_awake_warning">Uses extra battery. The screen-awake flag is released when the timer stops or FocusLoop leaves the foreground.</string>
+''')
