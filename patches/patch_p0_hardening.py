@@ -217,13 +217,19 @@ replace_once("app/src/main/java/com/focusloop/app/MainActivity.kt",
         keepScreenAwakeSwitch = findViewById(R.id.keepScreenAwakeSwitch)
 ''')
 replace_once("app/src/main/java/com/focusloop/app/MainActivity.kt",
-'''        vibrateSwitch.setOnCheckedChangeListener { _, checked -> store.vibrateOn = checked }
+'''        soundSwitch.setOnCheckedChangeListener { _, checked -> store.soundOn = checked }
+        vibrateSwitch.setOnCheckedChangeListener { _, checked -> store.vibrateOn = checked }
+
+        findViewById<View>(R.id.testAlarmBtn).setOnClickListener {
 ''',
-'''        vibrateSwitch.setOnCheckedChangeListener { _, checked -> store.vibrateOn = checked }
+'''        soundSwitch.setOnCheckedChangeListener { _, checked -> store.soundOn = checked }
+        vibrateSwitch.setOnCheckedChangeListener { _, checked -> store.vibrateOn = checked }
         keepScreenAwakeSwitch.setOnCheckedChangeListener { _, checked ->
             store.keepScreenAwake = checked
             refreshTimer()
         }
+
+        findViewById<View>(R.id.testAlarmBtn).setOnClickListener {
 ''')
 replace_once("app/src/main/java/com/focusloop/app/MainActivity.kt",
 '''        setKeepScreenOn(status == Status.RUNNING)
