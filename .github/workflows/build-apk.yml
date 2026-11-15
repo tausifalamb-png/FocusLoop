@@ -40,7 +40,9 @@ jobs:
           PY
 
       - name: Apply source audit fixes
-        run: python3 patches/patch_focusloop.py
+        run: |
+          python3 patches/patch_focusloop.py
+          python3 patches/patch_p0_hardening.py
 
       - uses: actions/setup-java@v4
         with:
@@ -53,6 +55,10 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
       - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run unit tests
+        working-directory: FocusLoop
+        run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Build debug APK
         working-directory: FocusLoop
