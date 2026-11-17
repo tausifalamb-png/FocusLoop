@@ -96,7 +96,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         page.addView(btn("Open saved projects"){ openProjects() })
         page.addView(label("OUTPUT",12f,Color.rgb(155,160,255)).apply { setPadding(0,dp(16),0,dp(6)) })
         result=label("Your result will appear here.",14f,Color.LTGRAY).apply { setPadding(dp(12),dp(12),dp(12),dp(12)); setBackgroundColor(Color.rgb(31,35,60)) }
-        page.addView(result,LinearLayout.LayoutParams(-1,-2).apply { minimumHeight=dp(180) })
+        page.addView(result,LinearLayout.LayoutParams(-1,-2).apply { setMinimumHeight(dp(180)) })
         status=label("Ready. Add your OpenRouter key to use free text AI.",13f,Color.rgb(190,215,190)).apply { setPadding(0,dp(12),0,dp(8)) }
         page.addView(status)
         page.addView(label("Honest limits: this build renders designed graphics as PNG and creates offline content. It does not yet synthesize photorealistic humans or new product photos. That needs a compatible on-device diffusion model and native runtime; multi-GB model weights are not bundled. Video currently creates storyboards, not MP4 files.",12f,Color.LTGRAY).apply { setPadding(0,dp(14),0,0) })
