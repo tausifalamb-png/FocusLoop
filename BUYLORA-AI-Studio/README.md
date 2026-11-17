@@ -1,25 +1,19 @@
-# BUYLORA AI Studio (Android)
+# BUYLORA AI Studio — Zero-Budget Offline Edition
 
-An independent Android creative-workflow hub inspired by the public Higgsfield AI Skills repository. It is not an official Higgsfield app and does not bundle proprietary Higgsfield models or backend services.
+An independent Android creative-workflow app. This version is designed to work offline without paid API keys, subscriptions, cloud inference credits or account tokens.
 
-## Implemented
-- Native Kotlin Android app (min SDK 26, target SDK 35).
-- Ten creative modules covering image generation, product photoshoot, brandkit, marketing, faceless video, YouTube thumbnails, marketplace cards, Soul ID workflow, website studio, and 3D/audio briefs.
-- Live text-to-image requests through Hugging Face Inference Providers using `stabilityai/stable-diffusion-3-medium-diffusers`.
-- Hugging Face token encrypted with Android Keystore AES-GCM.
-- Generated PNG saved to `Pictures/BUYLORA AI Studio`.
-- Other modules export creative briefs; they are not live media generators yet.
+## What works offline
+- Ten creative modules: image prompt builder, product photoshoot, brandkit, marketing, faceless video, YouTube thumbnail, marketplace cards, consent-based character workflow, website studio, and 3D/audio briefs.
+- Deterministic brief templates generated on-device.
+- Copy and share generated briefs.
+- Save briefs privately in app-local storage and reopen them.
+- No network permission, API key, billing setup or account login required.
 
-## Setup
-1. Create a Hugging Face token with Inference permissions: https://huggingface.co/settings/tokens
-2. Install the APK, enter the token in Provider setup, and save it. It is encrypted on-device.
-3. Select AI Image Generator, enter a prompt, and tap Generate image.
-4. Images are saved in `Pictures/BUYLORA AI Studio`.
-
-Free-tier inference credits are small, subject to change, and not unlimited. See https://huggingface.co/docs/inference-providers/pricing. Higgsfield account access does not imply free Higgsfield API credits. Direct Higgsfield sign-in/job submission and live video/audio/3D generation are not implemented.
+## Important capability boundary
+This build creates prompts, plans and production briefs. It does **not** render image, video, audio or 3D files. Real image generation fully offline would require integrating and downloading a compatible on-device model/runtime; that model is not bundled here, and performance depends on the phone's RAM, storage and chipset. No unlimited-free cloud generation is promised.
 
 ## Build
-Requires JDK 17, Android SDK 35, Android Gradle Plugin 8.7.3, Gradle 8.9. From this folder run `gradle assembleDebug`. The workflow in the parent repository builds this project and uploads the debug APK artifact.
+Requires JDK 17, Android SDK 35, Android Gradle Plugin 8.7.3 and Gradle 8.9. From this folder run `gradle assembleDebug`. The parent repository's GitHub Actions workflow builds this project and uploads a debug APK artifact.
 
-## Security
-No token is hardcoded. Tokens are encrypted using Android Keystore AES/GCM. Cleartext traffic and Android backup are disabled.
+## Privacy
+The creative brief library is stored in this app's private SharedPreferences. The app does not send prompts or saved briefs to a server.
