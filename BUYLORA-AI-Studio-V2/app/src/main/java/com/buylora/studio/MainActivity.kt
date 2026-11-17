@@ -12,6 +12,17 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.speech.tts.TextToSpeech
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
+import java.security.KeyStore
+import java.net.HttpURLConnection
+import java.net.URL
+import java.io.OutputStreamWriter
 import android.view.Gravity
 import android.widget.*
 import org.json.JSONArray
@@ -25,6 +36,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private lateinit var result: TextView
     private lateinit var status: TextView
     private lateinit var selected: TextView
+    private lateinit var apiKeyInput: EditText
     private var active = modules[0]
     private var tts: TextToSpeech? = null
     private var ttsReady = false
@@ -51,7 +63,17 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         page.addView(label("BUYLORA",13f,Color.rgb(155,160,255)))
         page.addView(label("AI STUDIO",32f).apply { setTypeface(null,1) })
         page.addView(label("Smart picks. Simple buying.",15f,Color.LTGRAY))
-        page.addView(label("V2 • Offline creative workspace • No paid API",13f,Color.rgb(180,215,185)).apply { setPadding(0,dp(12),0,dp(12)) })
+        page.addView(label("V2 • Free AI + offline creative workspace",13f,Color.rgb(180,215,185)).apply { setPadding(0,dp(12),0,dp(12)) })
+        page.addView(label("OPENROUTER FREE AI SETUP",12f,Color.rgb(155,160,255)).apply { setPadding(0,dp(8),0,dp(4)) })
+        apiKeyInput=EditText(this).apply {
+            setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); hint="OpenRouter API key (sk-or-...)"
+            inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true); setPadding(dp(12),dp(10),dp(12),dp(10)); setBackgroundColor(Color.rgb(31,35,60))
+        }
+        page.addView(apiKeyInput,LinearLayout.LayoutParams(-1,dp(54)))
+        page.addView(btn("Save API key securely on this phone"){ saveApiKey() })
+        page.addView(btn("Clear saved API key"){ clearApiKey() })
+        page.addView(label("Uses only OpenRouter's openrouter/free router. No paid model fallback is configured. Free availability and daily limits apply.",12f,Color.LTGRAY))
         modules.chunked(2).forEach { pair ->
             val row=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
             pair.forEach { name -> row.addView(btn(name){ choose(name) },LinearLayout.LayoutParams(0,dp(54),1f).apply { setMargins(dp(3),dp(3),dp(3),dp(3)) }) }
@@ -64,7 +86,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             minLines=4; gravity=Gravity.TOP; setPadding(dp(12),dp(12),dp(12),dp(12)); setBackgroundColor(Color.rgb(31,35,60))
         }
         page.addView(prompt,LinearLayout.LayoutParams(-1,dp(132)).apply { topMargin=dp(6) })
-        page.addView(btn("Create content / production plan"){ makeOutput() })
+        page.addView(btn("Ask Free AI (OpenRouter)"){ askFreeAi() })
+        page.addView(btn("Create offline content / production plan"){ makeOutput() })
         page.addView(btn("Render design PNG (poster / thumbnail / card)"){ renderPng() })
         page.addView(btn("Copy result"){ copyResult() })
         page.addView(btn("Share result"){ shareResult() })
@@ -74,7 +97,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         page.addView(label("OUTPUT",12f,Color.rgb(155,160,255)).apply { setPadding(0,dp(16),0,dp(6)) })
         result=label("Your result will appear here.",14f,Color.LTGRAY).apply { setPadding(dp(12),dp(12),dp(12),dp(12)); setBackgroundColor(Color.rgb(31,35,60)) }
         page.addView(result,LinearLayout.LayoutParams(-1,-2).apply { minHeight=dp(180) })
-        status=label("Ready. No login, token or cloud credits required.",13f,Color.rgb(190,215,190)).apply { setPadding(0,dp(12),0,dp(8)) }
+        status=label("Ready. Add your OpenRouter key to use free text AI.",13f,Color.rgb(190,215,190)).apply { setPadding(0,dp(12),0,dp(8)) }
         page.addView(status)
         page.addView(label("Honest limits: this build renders designed graphics as PNG and creates offline content. It does not yet synthesize photorealistic humans or new product photos. That needs a compatible on-device diffusion model and native runtime; multi-GB model weights are not bundled. Video currently creates storyboards, not MP4 files.",12f,Color.LTGRAY).apply { setPadding(0,dp(14),0,0) })
     }
@@ -140,6 +163,93 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
         if(line.isNotEmpty())c.drawText(line,x,y,p)
     }
+    private fun saveApiKey() {
+        val token=apiKeyInput.text.toString().trim()
+        if(!token.startsWith("sk-or-") || token.length<20){ status.text="That does not look like an OpenRouter key. Check it and try again."; return }
+        runCatching {
+            val cipher=Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
+            val encrypted=cipher.doFinal(token.toByteArray(Charsets.UTF_8))
+            val packed=Base64.encodeToString(cipher.iv,Base64.NO_WRAP)+"."+Base64.encodeToString(encrypted,Base64.NO_WRAP)
+            prefs.edit().putString("openrouter_key_enc",packed).apply()
+            apiKeyInput.setText("")
+            status.text="API key encrypted and saved on this phone."
+        }.onFailure { status.text="Secure save failed: "+(it.message ?: "unknown error") }
+    }
+
+    private fun clearApiKey() {
+        prefs.edit().remove("openrouter_key_enc").apply()
+        apiKeyInput.setText("")
+        status.text="Saved API key cleared from this app."
+    }
+
+    private fun getOrCreateSecretKey(): SecretKey {
+        val ks=KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (ks.getKey("buylora_openrouter_aes",null) as? SecretKey)?.let { return it }
+        val generator=KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore")
+        generator.init(KeyGenParameterSpec.Builder("buylora_openrouter_aes",
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setRandomizedEncryptionRequired(true).build())
+        return generator.generateKey()
+    }
+
+    private fun readApiKey(): String? = runCatching {
+        val packed=prefs.getString("openrouter_key_enc",null) ?: return null
+        val parts=packed.split(".")
+        if(parts.size!=2) return null
+        val cipher=Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE,getOrCreateSecretKey(),GCMParameterSpec(128,Base64.decode(parts[0],Base64.NO_WRAP)))
+        String(cipher.doFinal(Base64.decode(parts[1],Base64.NO_WRAP)),Charsets.UTF_8)
+    }.getOrNull()
+
+    private fun askFreeAi() {
+        val key=readApiKey()
+        if(key.isNullOrBlank()){ status.text="Save your OpenRouter API key first."; return }
+        val userPrompt=prompt.text.toString().trim()
+        if(userPrompt.isBlank()){ status.text="Enter a prompt first."; return }
+        status.text="Connecting to OpenRouter free model router..."
+        Thread {
+            var connection: HttpURLConnection?=null
+            try {
+                connection=(URL("https://openrouter.ai/api/v1/chat/completions").openConnection() as HttpURLConnection).apply {
+                    requestMethod="POST"; connectTimeout=20000; readTimeout=90000; doOutput=true
+                    setRequestProperty("Authorization","Bearer "+key)
+                    setRequestProperty("Content-Type","application/json")
+                    setRequestProperty("HTTP-Referer","https://github.com/tausifalamb-png/FocusLoop")
+                    setRequestProperty("X-Title","BUYLORA AI Studio")
+                }
+                val system="You are BUYLORA AI Studio, a practical creative assistant. User selected workflow: $active. Give accurate, usable outputs. Do not invent product specifications, testimonials, prices or claims. Clearly label assumptions."
+                val body=JSONObject().put("model","openrouter/free")
+                    .put("messages",JSONArray()
+                        .put(JSONObject().put("role","system").put("content",system))
+                        .put(JSONObject().put("role","user").put("content",userPrompt)))
+                    .put("max_tokens",1400)
+                OutputStreamWriter(connection.outputStream,Charsets.UTF_8).use { it.write(body.toString()) }
+                val code=connection.responseCode
+                val stream=if(code in 200..299) connection.inputStream else connection.errorStream
+                val response=stream.bufferedReader().use { it.readText() }
+                if(code !in 200..299) throw IllegalStateException(openRouterError(code,response))
+                val json=JSONObject(response)
+                val answer=json.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
+                if(answer.isNullOrBlank()) throw IllegalStateException("The free model returned an empty response.")
+                val model=json.optString("model","free model")
+                runOnUiThread {
+                    result.text=answer
+                    status.text="Free AI response received. Model: $model. No paid fallback requested."
+                }
+            } catch(e:Exception) {
+                runOnUiThread { status.text="Free AI unavailable: "+(e.message ?: "network error")+". No paid model was called." }
+            } finally { connection?.disconnect() }
+        }.start()
+    }
+
+    private fun openRouterError(code:Int, body:String): String {
+        val detail=runCatching { JSONObject(body).optJSONObject("error")?.optString("message") }.getOrNull()
+        return "HTTP $code: "+(detail?.takeIf { it.isNotBlank() } ?: body.take(220))
+    }
+
     private fun copyResult(){val v=result.text.toString();if(v.isBlank()||v.startsWith("Your result")){status.text="Create a result first.";return};(getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("BUYLORA",v));status.text="Copied."}
     private fun shareResult(){val v=result.text.toString();if(v.isBlank()||v.startsWith("Your result")){status.text="Create a result first.";return};startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply{type="text/plain";putExtra(Intent.EXTRA_TEXT,v)},"Share BUYLORA result"))}
     private fun speakResult(){val v=result.text.toString().take(3500);if(!ttsReady||v.isBlank()){status.text="Device text-to-speech is not ready.";return};tts?.speak(v,TextToSpeech.QUEUE_FLUSH,null,"buylora_preview");status.text="Speaking with device TTS."}
